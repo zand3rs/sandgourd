@@ -1,0 +1,13 @@
+*.swp
+*.log
+*.tgz
+*.gz
+
+.build
+.tmp
+
+autom4te.cache
+config.status
+
+Makefile
+build.sh

@@ -1,0 +1,166 @@
+#!/bin/bash
+
+PACKAGE_NAME=@PACKAGE_NAME@
+PREFIX=@prefix@
+
+## TAG is required
+TAG=$1
+if [ -z $TAG ]; then
+    echo "$0 <tag>"
+    exit 1
+fi
+
+## pre installation
+
+CWD=$(cd $(dirname $0) && pwd 2>/dev/null)
+CONF_DIR=$CWD/conf
+HTML_DIR=$CWD/html
+
+## create build directory
+BUILD_DIR=$CWD/.build
+if [ ! -d $BUILD_DIR ]; then
+    mkdir -p $BUILD_DIR
+fi
+if [ ! -d $BUILD_DIR ]; then
+    echo "Directory $BUILD_DIR does not exist!"
+    exit 1
+fi
+
+## create tmp directory
+TMP_DIR=$CWD/.tmp
+if [ ! -d $TMP_DIR ]; then
+    mkdir -p $TMP_DIR
+fi
+if [ ! -d $TMP_DIR ]; then
+    echo "Directory $TMP_DIR does not exist!"
+    exit 1
+fi
+
+## create pkg and tag directory
+DIST_PACKAGE=$PACKAGE_NAME-$TAG
+PKG_DIR=$TMP_DIR
+TAG_DIR=$PKG_DIR/$DIST_PACKAGE
+if [ ! -d $TAG_DIR ]; then
+    mkdir -p $TAG_DIR
+fi
+if [ ! -d $TAG_DIR ]; then
+    echo "Unable to create $TAG_DIR directory!"
+    exit 1
+fi
+
+## change directory
+cd $TMP_DIR
+
+## download and extract nginx
+NGINX_VERSION=1.9.3
+NGINX="nginx-$NGINX_VERSION"
+if [ ! -r $NGINX.tar.gz ]; then
+    wget --no-check-certificate -O$NGINX.tar.gz "http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz"
+fi
+if [ ! -d $NGINX ]; then
+    tar -xzvf $NGINX.tar.gz
+fi
+
+## download and extract nginx-devel-kit
+NGINX_DEVEL_KIT_VERSION=0.2.19
+NGINX_DEVEL_KIT="ngx_devel_kit-$NGINX_DEVEL_KIT_VERSION"
+if [ ! -r $NGINX_DEVEL_KIT.tar.gz ]; then
+    wget --no-check-certificate -O$NGINX_DEVEL_KIT.tar.gz "https://github.com/simpl/ngx_devel_kit/archive/v$NGINX_DEVEL_KIT_VERSION.tar.gz"
+fi
+if [ ! -d $NGINX_DEVEL_KIT ]; then
+    tar -xzvf $NGINX_DEVEL_KIT.tar.gz
+fi
+
+## download and extract nginx-set-misc
+NGINX_SET_MISC_VERSION=0.29
+NGINX_SET_MISC="set-misc-nginx-module-$NGINX_SET_MISC_VERSION"
+if [ ! -r $NGINX_SET_MISC.tar.gz ]; then
+    wget --no-check-certificate -O$NGINX_SET_MISC.tar.gz "https://github.com/openresty/set-misc-nginx-module/archive/v$NGINX_SET_MISC_VERSION.tar.gz"
+fi
+if [ ! -d $NGINX_SET_MISC ]; then
+    tar -xzvf $NGINX_SET_MISC.tar.gz
+fi
+
+## download and extract nginx-headers-more
+NGINX_HEADERS_MORE_VERSION=0.29
+NGINX_HEADERS_MORE="headers-more-nginx-module-$NGINX_HEADERS_MORE_VERSION"
+if [ ! -r $NGINX_HEADERS_MORE.tar.gz ]; then
+    wget --no-check-certificate -O$NGINX_HEADERS_MORE.tar.gz "https://github.com/openresty/headers-more-nginx-module/archive/v$NGINX_HEADERS_MORE_VERSION.tar.gz"
+fi
+if [ ! -d $NGINX_HEADERS_MORE ]; then
+    tar -xzvf $NGINX_HEADERS_MORE.tar.gz
+fi
+
+## download and extract nginx-echo
+NGINX_ECHO_VERSION=0.59
+NGINX_ECHO="echo-nginx-module-$NGINX_ECHO_VERSION"
+if [ ! -r $NGINX_ECHO.tar.gz ]; then
+    wget --no-check-certificate -O$NGINX_ECHO.tar.gz "https://github.com/openresty/echo-nginx-module/archive/v$NGINX_ECHO_VERSION.tar.gz"
+fi
+if [ ! -d $NGINX_ECHO ]; then
+    tar -xzvf $NGINX_ECHO.tar.gz
+fi
+
+
+## configure and install
+cd nginx-$NGINX_VERSION
+./configure --prefix=$PREFIX \
+            --with-http_gzip_static_module --with-http_ssl_module --with-http_image_filter_module \
+            --add-module=../$NGINX_DEVEL_KIT --add-module=../$NGINX_SET_MISC --add-module=../$NGINX_HEADERS_MORE \
+            --add-module=../$NGINX_ECHO
+
+\rm -Rf $TAG_DIR/*
+make && make install DESTDIR=$TAG_DIR
+
+
+## post installation
+
+# copy config files
+echo "Copying config files..."
+DEST_CONF_DIR=$TAG_DIR$PREFIX/conf
+if [ ! -d $DEST_CONF_DIR ]; then
+    echo "Missing $DEST_CONF_DIR directory!"
+    exit 1
+fi
+find $DEST_CONF_DIR/* -not -name 'mime.types' -exec sh -c 'rm -Rf $0' {} \;
+\cp -Rf $CONF_DIR/* $DEST_CONF_DIR/.
+
+# copy html files
+echo "Copying html files..."
+DEST_HTML_DIR=$TAG_DIR$PREFIX/html
+if [ ! -d $DEST_HTML_DIR ]; then
+    echo "Missing $DEST_HTML_DIR directory!"
+    exit 1
+fi
+\rm -Rf $DEST_HTML_DIR/*
+\cp -Rf $HTML_DIR/* $DEST_HTML_DIR/.
+
+# generate build package
+echo "Generating build package..."
+cd $TAG_DIR && tar -cvf - * | gzip -c9 > $NGINX.tgz
+
+# generate install script
+echo "Generating Makefile..."
+GNU_TAR=$(tar --version | grep -m1 -o GNU 2>/dev/null)
+GNU_TAR_X=${GNU_TAR/GNU/"--no-same-permissions --no-overwrite-dir"}
+
+cat << EOF > $TAG_DIR/Makefile
+#
+# Auto-generated Makefile
+#
+# by: zander - zand3rs@gmail.com
+
+all:
+	@echo 'make [install]'
+
+install:
+	@echo 'Installing $NGINX to $PREFIX...'
+	@tar $GNU_TAR_X -om -C/ -zxvf $NGINX.tgz
+
+EOF
+
+# generate release package
+echo "Generating release package..."
+cd $PKG_DIR && tar -cvf - $DIST_PACKAGE/Makefile $DIST_PACKAGE/$NGINX.tgz | gzip -c9 > $BUILD_DIR/$DIST_PACKAGE.tgz
+
+exit 0

@@ -1,0 +1,119 @@
+#
+# Makefile
+#
+# by: zander - zand3rs@gmail.com
+#
+# usage:
+# make build
+# make build TAG='<version-tag>'
+
+# make deploy
+# make deploy TAG='<version-tag>'
+#
+
+CWD = $(shell dirname $(abspath $(MAKEFILE_LIST)))
+TAG = $(shell git describe --tags 2>/dev/null)
+
+PACKAGE_NAME = $(shell git remote -v | grep fetch | sed -E 's/^.*\/([^/]+)\.git.*$$/\1/' 2>/dev/null)
+ifeq "$(strip $(PACKAGE_NAME))" ""
+    PACKAGE_NAME = @PACKAGE_NAME@
+endif
+
+PACKAGE_VERSION = $(TAG)
+ifeq "$(strip $(PACKAGE_VERSION))" ""
+    PACKAGE_VERSION = @PACKAGE_VERSION@
+endif
+
+DIST_PACKAGE = $(PACKAGE_NAME)-$(PACKAGE_VERSION)
+DIST_FILES = Makefile.in README.md build.sh.in conf configure configure.ac html
+
+S3_BUCKET = s3://@S3_BUCKET@/$(PACKAGE_NAME)/
+S3_ACCESS_KEY = @S3_ACCESS_KEY@
+S3_SECRET_KEY = @S3_SECRET_KEY@
+
+BUILD_DIR = $(CWD)/.build
+TMP_DIR = $(CWD)/.tmp
+
+BUILD_PACKAGE = $(PACKAGE_NAME)-$(PACKAGE_VERSION).tgz
+
+LAST_BUILD = $(TMP_DIR)/.$(PACKAGE_NAME)-last-build
+LAST_DEPLOY = $(TMP_DIR)/.$(PACKAGE_NAME)-last-deploy
+
+
+all:
+	@echo 'make [build|deploy|dist|clean|cleanall]'
+
+build: init
+	@echo 'Creating build package (version: $(PACKAGE_VERSION))...'
+	@\
+	LAST_BUILD=`[ -r $(LAST_BUILD) ] && cat $(LAST_BUILD)`; \
+	if [ -n "$(PACKAGE_VERSION)" ] && [ "$(PACKAGE_VERSION)" != "$$LAST_BUILD" ]; then \
+	    ./build.sh $(PACKAGE_VERSION) && \
+	    echo "$(PACKAGE_VERSION)" > $(LAST_BUILD); \
+	fi
+
+deploy: build
+	@echo 'Deploying build package (version: $(PACKAGE_VERSION))...'
+	@\
+	S3_OPTIONS=""; \
+	if [ -n "$(S3_ACCESS_KEY)" ]; then \
+	    S3_OPTIONS+=" --access_key=$(S3_ACCESS_KEY)"; \
+	fi; \
+	if [ -n "$(S3_SECRET_KEY)" ]; then \
+	    S3_OPTIONS+=" --secret_key=$(S3_SECRET_KEY)"; \
+	fi; \
+	BUILD_FILES=""; \
+	if [ -r "$(BUILD_DIR)/$(BUILD_PACKAGE)" ]; then \
+	    BUILD_FILES+=" $(BUILD_DIR)/$(BUILD_PACKAGE)"; \
+	fi; \
+	LAST_DEPLOY=`[ -r $(LAST_DEPLOY) ] && cat $(LAST_DEPLOY)`; \
+	if [ -n "$(PACKAGE_VERSION)" ] && [ "$(PACKAGE_VERSION)" != "$$LAST_DEPLOY" ] && [ -n "$$BUILD_FILES" ]; then \
+	    echo "Copying files to S3..."; \
+	    s3cmd $$S3_OPTIONS put $$BUILD_FILES $(S3_BUCKET) && \
+	    \rm -Rf $$BUILD_FILES && \
+	    echo "$(PACKAGE_VERSION)" > $(LAST_DEPLOY); \
+	fi
+
+dist: init
+	@echo 'Creating dist package...'
+	@\
+	DIST_DIR="$(TMP_DIR)/$(DIST_PACKAGE)"; \
+	if [ ! -d "$$DIST_DIR" ]; then \
+	    mkdir -p "$$DIST_DIR"; \
+	fi; \
+	if [ -d "$$DIST_DIR" ]; then \
+	    \rm -Rf $$DIST_DIR/* && \
+	    \cp -Rf $(DIST_FILES) $$DIST_DIR/. && \
+	    cd $(TMP_DIR) && tar -cvf - $(DIST_PACKAGE) | gzip -c9 > $(CWD)/$(DIST_PACKAGE).tar.gz; \
+	fi;
+
+init:
+	@\
+	if [ ! -d "$(TMP_DIR)" ]; then \
+	    mkdir -p "$(TMP_DIR)"; \
+	fi; \
+	if [ ! -d "$(BUILD_DIR)" ]; then \
+	    mkdir -p "$(BUILD_DIR)"; \
+	fi;
+
+clean:
+	@echo 'Deleting temporary files...'
+	@\rm -Rf $(TMP_DIR)/*
+	@echo 'Deleting build files..'
+	@\rm -Rf $(BUILD_DIR)/*
+
+cleanall: clean
+	@echo 'Deleting reference files...'
+	@\rm -Rf $(LAST_BUILD) $(LAST_DEPLOY)
+	@echo 'Deleting auto-generated files...'
+	@\rm -Rf Makefile build.sh *.cache *.log *.status
+	@echo 'Deleting tarballs...'
+	@\rm -Rf *.gz
+
+silent:
+	@:
+
+%: silent
+	@:
+
+.PHONY: all build clean cleanall deploy dist init silent
