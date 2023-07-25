@@ -52,50 +52,50 @@ fi
 cd $TMP_DIR
 
 ## download and extract nginx
-NGINX_VERSION=1.9.3
+NGINX_VERSION=1.20.1
 NGINX="nginx-$NGINX_VERSION"
 if [ ! -r $NGINX.tar.gz ]; then
-    wget --no-check-certificate -O$NGINX.tar.gz "http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz"
+    wget --no-check-certificate -O$NGINX.tar.gz "https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz"
 fi
 if [ ! -d $NGINX ]; then
     tar -xzvf $NGINX.tar.gz
 fi
 
 ## download and extract nginx-devel-kit
-NGINX_DEVEL_KIT_VERSION=0.2.19
+NGINX_DEVEL_KIT_VERSION=0.3.2
 NGINX_DEVEL_KIT="ngx_devel_kit-$NGINX_DEVEL_KIT_VERSION"
 if [ ! -r $NGINX_DEVEL_KIT.tar.gz ]; then
-    wget --no-check-certificate -O$NGINX_DEVEL_KIT.tar.gz "https://github.com/simpl/ngx_devel_kit/archive/v$NGINX_DEVEL_KIT_VERSION.tar.gz"
+    wget --no-check-certificate -O$NGINX_DEVEL_KIT.tar.gz "https://github.com/vision5/ngx_devel_kit/archive/refs/tags/v$NGINX_DEVEL_KIT_VERSION.tar.gz"
 fi
 if [ ! -d $NGINX_DEVEL_KIT ]; then
     tar -xzvf $NGINX_DEVEL_KIT.tar.gz
 fi
 
 ## download and extract nginx-set-misc
-NGINX_SET_MISC_VERSION=0.29
+NGINX_SET_MISC_VERSION=0.33
 NGINX_SET_MISC="set-misc-nginx-module-$NGINX_SET_MISC_VERSION"
 if [ ! -r $NGINX_SET_MISC.tar.gz ]; then
-    wget --no-check-certificate -O$NGINX_SET_MISC.tar.gz "https://github.com/openresty/set-misc-nginx-module/archive/v$NGINX_SET_MISC_VERSION.tar.gz"
+    wget --no-check-certificate -O$NGINX_SET_MISC.tar.gz "https://github.com/openresty/set-misc-nginx-module/archive/refs/tags/v$NGINX_SET_MISC_VERSION.tar.gz"
 fi
 if [ ! -d $NGINX_SET_MISC ]; then
     tar -xzvf $NGINX_SET_MISC.tar.gz
 fi
 
 ## download and extract nginx-headers-more
-NGINX_HEADERS_MORE_VERSION=0.29
+NGINX_HEADERS_MORE_VERSION=0.34
 NGINX_HEADERS_MORE="headers-more-nginx-module-$NGINX_HEADERS_MORE_VERSION"
 if [ ! -r $NGINX_HEADERS_MORE.tar.gz ]; then
-    wget --no-check-certificate -O$NGINX_HEADERS_MORE.tar.gz "https://github.com/openresty/headers-more-nginx-module/archive/v$NGINX_HEADERS_MORE_VERSION.tar.gz"
+    wget --no-check-certificate -O$NGINX_HEADERS_MORE.tar.gz "https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v$NGINX_HEADERS_MORE_VERSION.tar.gz"
 fi
 if [ ! -d $NGINX_HEADERS_MORE ]; then
     tar -xzvf $NGINX_HEADERS_MORE.tar.gz
 fi
 
 ## download and extract nginx-echo
-NGINX_ECHO_VERSION=0.59
+NGINX_ECHO_VERSION=0.63
 NGINX_ECHO="echo-nginx-module-$NGINX_ECHO_VERSION"
 if [ ! -r $NGINX_ECHO.tar.gz ]; then
-    wget --no-check-certificate -O$NGINX_ECHO.tar.gz "https://github.com/openresty/echo-nginx-module/archive/v$NGINX_ECHO_VERSION.tar.gz"
+    wget --no-check-certificate -O$NGINX_ECHO.tar.gz "https://github.com/openresty/echo-nginx-module/archive/refs/tags/v$NGINX_ECHO_VERSION.tar.gz"
 fi
 if [ ! -d $NGINX_ECHO ]; then
     tar -xzvf $NGINX_ECHO.tar.gz
